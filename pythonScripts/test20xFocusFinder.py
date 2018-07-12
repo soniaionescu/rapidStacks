@@ -58,7 +58,25 @@ def findFocusLayerVLPictureCreation(folder, topZ, bottomZ, mmc):
     fileWHighestFocus = zList[hvLayer-1]
     return fileWHighestFocus
 
-
+def findFocusFromPhotosSobelGradient(folder):
+    for root, subfolders, files in os.walk(folder):
+        highestVariance = 0
+        hvLayer = 0
+        for name in files:
+            if name.endswith(".tiff"):
+                filePath = os.path.join(root, name)
+                print(filePath)
+                img = cv2.imread(filePath, 0)
+                sobelx = cv2.Sobel(img,cv2.CV_64F,1,0,ksize=5)
+                sobely = cv2.Sobel(img,cv2.CV_64F,0,1,ksize=5)
+                abs_sobel_x = cv2.convertScaleAbs(sobelx) # converting back to uint8
+                abs_sobel_y = cv2.convertScaleAbs(sobely)
+                dst = cv2.addWeighted(abs_sobel_x,0.5,abs_sobel_y,0.5,0)
+                thisVariance = dst.mean()
+                if thisVariance > highestVariance:
+                    highestVariance = thisVariance
+                    hvLayer = filePath
+    return hvLayer
     
 ## go through each folder of z stacks and find the most focused of each folder, and create a separate folder with only these in the same x/y/z.tiff format
 def createFocusSpline(slideName):
