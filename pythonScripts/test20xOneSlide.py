@@ -22,30 +22,25 @@ mmc.loadSystemConfiguration("ZeissTestMMConfig.cfg")
 
 def oneSlide(slideName):
     ## get coordinates needed to take an overview
-    #coordinates = edgeDetectedOverview()
-    #LeftX = coordinates[0]
-    #RightX = coordinates[1] 
-    #TopY = coordinates[2] 
-    #BottomY = coordinates[3]
-    LeftX = -24431.79999999
-    RightX = -31555.6
-    TopY = -4097.199999
-    BottomY = 3031.0
+    coordinates = edgeDetectedOverview()
+    LeftX = coordinates[0]
+    RightX = coordinates[1] 
+    TopY = coordinates[2] 
+    BottomY = coordinates[3]
     ## take overview, output is x images which are in y folders
-    #getOverviewAndSaveXY(RightX, LeftX, BottomY, TopY, mmc)
+    getOverviewAndSaveXY(RightX, LeftX, BottomY, TopY, mmc)
     ## detect which picture is most likely to have a neuron in it
-    #mostLikelyPath = repr(NeuronDetection()) ##(pass in a string literal since there are slashes)
-    mostLikelyPath = "OverviewTest\-1284.587499\layer-28369.87.tiff"
+    mostLikelyPath = repr(NeuronDetection()) ##(pass in a string literal since there are slashes)
     mostLikelyPathFolder = mostLikelyPath.replace(".tiff", "")
     ## find x and y position where there was most likely to be a neuron
     xy = mostLikelyPath.split("\\")
     print xy
-    xy[2] = xy[2].replace("layer", "")
-    xy[2] = xy[2]. replace(".tiff", "")
-    ## 4 and 2 because the x is at the end and the y is in the middle and there are blank entries where there were slashes
-    x = float(xy[2])
+    xy[3] = xy[3].replace("layer", "")
+    xy[3] = xy[3]. replace(".tiff", "")
+    ## 3 and 2 because the x is at the end and the y is in the middle and they are two folders deep
+    x = float(xy[3])
     print x
-    y = float(xy[1])
+    y = float(xy[2])
     print y
     ## make a folder for that x position
     if not os.path.exists(mostLikelyPathFolder):
@@ -59,8 +54,10 @@ def oneSlide(slideName):
     lowerZ = focusedZ - 15
     ## get overview with z stacks at appropriate position
     getOverviewAndSaveZ(RightX, LeftX, BottomY, TopY, upperZ, lowerZ, mmc)
+    ## rename all the folders to be in the FFFFFF -> FFFFFF_SSSSSS -> ZZZZZZ.tiff file required by TeraStitcher
+    renameFiles("OverviewTest")
     ## make the focus spline
     createFocusSpline(slideName)
-
+    
 oneSlide("exampleSlide")
 
