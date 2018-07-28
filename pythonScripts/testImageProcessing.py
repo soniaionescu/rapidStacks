@@ -3,64 +3,100 @@ import numpy as np
 from pylab import *
 from PIL import Image
 import scipy
+from scipy.misc import imsave
+from test20xEdgeDetection import whichCase, threshholding
+from multiprocessing import Pool
 #get one level of acquisition
 ##load the microscope
-mmc = MMCorePy.CMMCore()
-mmc.loadSystemConfiguration("ZeissTestMMConfig.cfg")
+#mmc = MMCorePy.CMMCore()
+#mmc.loadSystemConfiguration("ZeissTestMMConfig.cfg")
 ## testing how pictures are acquired and stored
 
-## Test displaying images
-### mmc.snapImage()
-###img = mmc.getImage()
+"""purpose: find the minimum across the z axis at a single x,y coordinate
+    inputs: the flatField image array,  raw image, mmc object
+    returns: the corrected image array
+    saves: nothing
+"""
+## find minimum of each pixel in the 3D array
+def findMinimum(xy, inputArray, mip):
+    x = xy[0]
+    y = xy[1]
+    minimumElement = np.amin(inputArray[:,y,x])
+    mip[y,x] = minimumElement
 
-## display = Image.fromarray(img) ## converts the numpy array into an image object
-## display.show() ## can show us a preview of the first image
- 
-#  Test stitching 2 images
-## get height and width of image
-pixelSize = 3.45 ## microns
-width = mmc.getImageWidth()
-height = mmc.getImageHeight()
-## getxy position of first image
-initialX = mmc.getXPosition()
-initialY = mmc.getYPosition
-## take first image
-mmc.snapImage()
-img1 = mmc.getImage()
-## set xy position of second image
-mmc.setRelativeXYPosition(width*pixelSize/20, 0) ## this is just a guess because of the magnification of the objective?? seems to be correct based off image vs what's im microscope
-mmc.sleep(1000)
-## take second image
-mmc.snapImage()
-img2 = mmc.getImage()
-## stitch images together
-totalImage = np.concatenate((img1,img2), axis=1)
-## make image object
-displayStitched = Image.fromarray(totalImage)
-## display concatenated image
-displayStitched.show()
+class coord(object):
+    def __init__(self, xy, inputArray, mip):
+        self.x = xy[0]
+        self.y = xy[1]
+    def __call__(self, xy, inputArray, mip):
+        findMinimum(xy, inputArray, mip)
 
-# flat field correct an individual image array: equation is C = [(R-D)*m]/(F-D) where R is Raw, C is correct, F is flat field, D is dark field, and m is image averaged valued of F-D
-## take a flat field
-###raw_input("Move off the sample and press enter")
-###mmc.snapImage()
-###flatField = mmc.getImage()
-## take a dark field 
-###raw_input("Turn the lamp off and press enter")
-###mmc.snapImage()
-###darkField = mmc.getImage()
-## calculate m
-###m = np.average(np.subtract(flatField, darkField))
-## create the corrected image
-###n = np.subtract(img1, darkField)
-###numerator = np.multiply(n, m)
-###denominator = np.subtract(flatField, darkField)
-###correctedImage = np.divide(numerator, denominator)
-## display the corrected image
-###displayCorrected = Image.fromarray(correctedImage)
-###displayCorrected.show()
-###displayCStitched = Image.fromarray(np.concatenate((correctedImage, correctedImage), axis = 1))
-###displayCStitched.show()
+"""purpose: get a minimum intensity projection from one z stack
+    inputs: the z stack
+    returns: the minimum intensity array at that location
+    saves: nothing
+"""
+def minimumIntensityProjection(inputArray, mmc):
+    imageHeight = mmc.getImageHeight()
+    imageWidth = mmc.getImageWidth()
+    ## initialize an empty array
+    mip = np.empty([imageHeight, imageWidth])
+    ## make list of X, Y coordinates
+    coordinateList = []
+    yList = list(range(imageHeight-1))
+    xList = list(range(imageWidth-1))
+    coordinateList = list(zip(xList, yList))
+    print "coordList made"
+    p = Pool(8)
+    p.map(coord(coordinateList, inputArray, mip), coordinateList, 1)
+    return mip
+
+
+
+"""purpose: flat field correct an individual image array with only a flatfield image
+    inputs: the flatField image array,  raw image, mmc object
+    returns: the corrected image array
+    saves: nothing
+"""
+def flatFieldCorrection(flatField, img,  mmc):
+    ## get correctedImage
+    #correctedImage = np.divide(np.multiply(img, np.divide(flatField, 2)), flatField)
+    correctedImage = np.divide(np.multiply(img, np.mean(flatField)), flatField)
+    ## display the corrected image
+    return correctedImage.astype('uint16')
+
+"""purpose: moves the camera off the sample to get flatfield, turns light off to get darkfield, ends up in same place w light on
+    inputs: mmc object
+    returns: flatfield and darkfield image arrays
+    saves: nothing
+"""
+def moveForFlatField(mmc):
+    ## get initial coordinates
+    initialX = mmc.getXPosition()
+    initialY = mmc.getYPosition()
+    ## get image height
+    imageHeight = mmc.getImageHeight()
+    pixelSize = 3.45/(20*.63) ## for ids uEye at 20x magnification
+    imageHeightUM = pixelSize*imageHeight 
+    ## get off the sample
+    mmc.snapImage()
+    initialImg = mmc.getImage()
+    initialImg = threshholding(initialImg)
+    while whichCase(initialImg) is not 'j':
+        print whichCase(initialImg)
+        mmc.setRelativeXYPosition(0, imageHeightUM)
+        mmc.snapImage()
+        initialImg = mmc.getImage()
+        initialImg = threshholding(initialImg)
+    ## move one extra time just in case
+    mmc.setRelativeXYPosition(0, imageHeightUM)
+    ## take the flatField
+    mmc.snapImage()
+    flatField = mmc.getImage()
+    ## return to initialXY
+    mmc.setXYPosition(initialX, initialY)
+    ## return flatField
+    return flatField
 
 
 
