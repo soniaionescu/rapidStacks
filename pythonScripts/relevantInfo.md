@@ -12,6 +12,5 @@
 https://www.pyimagesearch.com/2015/09/07/blur-detection-with-opencv
 
 
-##For flat field correction:
-
-##For stitching images together
+## frangi filtering
+https://docs.scipy.org/doc/numpy/reference/generated/numpy.save.html
